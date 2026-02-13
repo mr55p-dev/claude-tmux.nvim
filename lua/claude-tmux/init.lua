@@ -15,6 +15,7 @@ local state = {
   pane_id = nil,
   nvim_pane_id = nil,
   config = nil,
+  hidden = false,
 }
 
 -- Helper to run tmux commands and get output
@@ -53,6 +54,27 @@ local function is_pane_focused()
   end
   local active_pane = tmux_cmd("display-message -p '#{pane_id}'")
   return active_pane == state.pane_id
+end
+
+-- Hide the claude pane by resizing to minimum height
+local function hide_pane()
+  if not state.pane_id or not pane_exists() then
+    return
+  end
+  -- Resize to 1 line (minimum possible)
+  tmux_cmd("resize-pane -t " .. state.pane_id .. " -y 1")
+  state.hidden = true
+end
+
+-- Show the claude pane by restoring its height
+local function show_pane()
+  if not state.pane_id or not pane_exists() then
+    return
+  end
+  local split_size = (state.config and state.config.split_size) or defaults.split_size
+  -- Restore to configured percentage
+  tmux_cmd("resize-pane -t " .. state.pane_id .. " -y " .. split_size .. "%")
+  state.hidden = false
 end
 
 -- Get the current pane ID (the neovim pane)
@@ -187,6 +209,7 @@ function provider.open(cmd_string, env_table, effective_config, focus)
 
   if new_pane_id and new_pane_id ~= "" then
     state.pane_id = new_pane_id
+    state.hidden = false
     -- Set up toggle key to return to neovim from the claude pane
     setup_return_binding()
   end
@@ -205,12 +228,36 @@ function provider.close()
   remove_return_binding()
   state.pane_id = nil
   state.nvim_pane_id = nil
+  state.hidden = false
+end
+
+function provider.hide()
+  hide_pane()
+end
+
+function provider.show()
+  show_pane()
+  if state.pane_id then
+    tmux_cmd("select-pane -t " .. state.pane_id)
+  end
+end
+
+function provider.is_hidden()
+  return state.hidden
 end
 
 function provider.simple_toggle(cmd_string, env_table, effective_config)
   if pane_exists() then
-    provider.close()
+    if state.hidden then
+      -- Pane is hidden, show it and focus
+      show_pane()
+      tmux_cmd("select-pane -t " .. state.pane_id)
+    else
+      -- Pane is visible, hide it
+      hide_pane()
+    end
   else
+    -- Pane doesn't exist, open it
     provider.open(cmd_string, env_table, effective_config, true)
   end
 end
@@ -219,8 +266,13 @@ function provider.focus_toggle(cmd_string, env_table, effective_config)
   if not pane_exists() then
     -- Terminal doesn't exist, open it
     provider.open(cmd_string, env_table, effective_config, true)
+  elseif state.hidden then
+    -- Terminal is hidden, show it and focus
+    show_pane()
+    tmux_cmd("select-pane -t " .. state.pane_id)
   elseif is_pane_focused() then
-    -- Terminal is focused, return to previous pane (neovim)
+    -- Terminal is focused, hide it and return to neovim
+    hide_pane()
     tmux_cmd("last-pane")
   else
     -- Terminal exists but not focused, focus it
