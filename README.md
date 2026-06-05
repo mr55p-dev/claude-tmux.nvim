@@ -1,6 +1,6 @@
 # claude-tmux.nvim
 
-A tmux terminal provider for [claudecode.nvim](https://github.com/coder/claudecode.nvim). Opens Claude Code in a tmux split at the bottom of your window instead of using Neovim's built-in terminal.
+A tmux terminal provider for [claudecode.nvim](https://github.com/coder/claudecode.nvim). Opens Claude Code in a tmux split instead of using Neovim's built-in terminal.
 
 ## Requirements
 
@@ -35,7 +35,8 @@ use {
 ```lua
 local tmux_provider = require("claude-tmux").setup({
   toggle_key = "<C-j>",  -- Key to return to neovim (default: "<C-j>")
-  split_size = 30,       -- Split height as percentage (default: 30)
+  split_size = 30,       -- Split size as percentage (default: 30)
+  split_side = "bottom", -- "bottom" or "right" (default: "bottom")
 })
 
 require("claudecode").setup({
@@ -51,7 +52,8 @@ require("claudecode").setup({
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `toggle_key` | string | `"<C-j>"` | Key binding to return to Neovim from the Claude pane. Uses Vim key notation. Set to `nil` to disable. |
-| `split_size` | number | `30` | Height of the tmux split as a percentage of the window. |
+| `split_size` | number | `30` | Size of the tmux split as a percentage of the window (height or width depending on `split_side`). |
+| `split_side` | string | `"bottom"` | Where to open the split. `"bottom"` opens a pane below, `"right"` opens a pane to the right. |
 
 ### Supported Key Notations
 
@@ -64,7 +66,7 @@ The `toggle_key` option accepts standard Vim key notation:
 
 ## How It Works
 
-1. When you open Claude Code, the plugin creates a new tmux pane at the bottom of your current window
+1. When you open Claude Code, the plugin creates a new tmux pane (bottom or right side, depending on `split_side`)
 2. A conditional keybinding is set up so that pressing the toggle key (default `<C-j>`) while in the Claude pane switches back to Neovim
 3. The keybinding only affects the Claude pane - in other panes, the key passes through normally
 4. When the Claude terminal is closed, the keybinding is automatically cleaned up

@@ -1,13 +1,14 @@
 -- claude-tmux.nvim
 -- A tmux terminal provider for claudecode.nvim
--- Opens Claude Code in a tmux split at the bottom of the window
+-- Opens Claude Code in a tmux split
 
 local M = {}
 
 -- Default configuration
 local defaults = {
   toggle_key = "<C-j>",  -- Key to return to neovim from claude pane
-  split_size = 30,       -- Percentage of window height for the split
+  split_size = 30,       -- Percentage of window height/width for the split
+  split_side = "bottom", -- Where to open the split: "bottom" or "right"
 }
 
 -- State
@@ -56,24 +57,26 @@ local function is_pane_focused()
   return active_pane == state.pane_id
 end
 
--- Hide the claude pane by resizing to minimum height
+-- Hide the claude pane by resizing to minimum
 local function hide_pane()
   if not state.pane_id or not pane_exists() then
     return
   end
-  -- Resize to 1 line (minimum possible)
-  tmux_cmd("resize-pane -t " .. state.pane_id .. " -y 1")
+  local split_side = (state.config and state.config.split_side) or defaults.split_side
+  local flag = split_side == "right" and "-x" or "-y"
+  tmux_cmd("resize-pane -t " .. state.pane_id .. " " .. flag .. " 1")
   state.hidden = true
 end
 
--- Show the claude pane by restoring its height
+-- Show the claude pane by restoring its size
 local function show_pane()
   if not state.pane_id or not pane_exists() then
     return
   end
   local split_size = (state.config and state.config.split_size) or defaults.split_size
-  -- Restore to configured percentage
-  tmux_cmd("resize-pane -t " .. state.pane_id .. " -y " .. split_size .. "%")
+  local split_side = (state.config and state.config.split_side) or defaults.split_side
+  local flag = split_side == "right" and "-x" or "-y"
+  tmux_cmd("resize-pane -t " .. state.pane_id .. " " .. flag .. " " .. split_size .. "%")
   state.hidden = false
 end
 
@@ -194,14 +197,16 @@ function provider.open(cmd_string, env_table, effective_config, focus)
   local original_pane = get_current_pane_id()
   state.nvim_pane_id = original_pane
 
-  -- Create a new split at the bottom
   local full_cmd = env_prefix .. cmd_string
+  local split_side = (state.config and state.config.split_side) or defaults.split_side
+  local split_flag = split_side == "right" and "-h" or "-v"
 
   -- Split and run command, capturing the new pane ID
   -- Using -P to print pane info and -F to format it
   local new_pane_id = tmux_cmd(
     string.format(
-      "split-window -v -l %d%% -P -F '#{pane_id}' '%s'",
+      "split-window %s -l %d%% -P -F '#{pane_id}' '%s'",
+      split_flag,
       split_size,
       full_cmd:gsub("'", "'\\''")
     )
@@ -302,7 +307,8 @@ end
 --- Setup the claude-tmux provider
 --- @param opts table|nil Configuration options
 --- @param opts.toggle_key string|nil Key to return to neovim from claude pane (default: "<C-j>")
---- @param opts.split_size number|nil Percentage of window height for the split (default: 30)
+--- @param opts.split_size number|nil Percentage of window height/width for the split (default: 30)
+--- @param opts.split_side string|nil Where to open the split: "bottom" or "right" (default: "bottom")
 --- @return table provider The terminal provider for claudecode.nvim
 function M.setup(opts)
   opts = opts or {}
