@@ -161,7 +161,7 @@ local provider = {}
 function provider.setup(config)
   -- This is called by claudecode.nvim, merge with our config
   if config then
-    state.config = vim.tbl_deep_extend("force", state.config or {}, config)
+    state.config = vim.tbl_deep_extend("force", config, state.config or {})
   end
 end
 
