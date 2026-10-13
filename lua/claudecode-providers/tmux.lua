@@ -127,6 +127,7 @@ function provider.open(cmd_string, env_table, effective_config, focus)
     state.pane_id = new_pane_id
     state.hidden = false
     setup_return_binding()
+    require("claudecode-providers.sync").send_when_connected()
   end
 
   if not focus and original_pane then

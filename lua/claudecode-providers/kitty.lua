@@ -146,6 +146,7 @@ function provider.open(cmd_string, env_table, effective_config, focus)
     -- kitty @ launch prints the new window ID on stdout
     state.window_id = output:match("(%d+)")
     state.hidden = false
+    require("claudecode-providers.sync").send_when_connected()
   end
 
   if not focus and state.nvim_window_id then
