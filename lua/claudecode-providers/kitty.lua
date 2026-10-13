@@ -74,7 +74,7 @@ local function hide_window()
 end
 
 local function show_window()
-  if not state.window_id or not window_exists() then return end
+  if not state.window_id or not state.hidden or not window_exists() then return end
   local axis = state.config.split_side == "right" and "horizontal" or "vertical"
   if state.saved_size then
     local target = axis == "vertical" and state.saved_size.lines or state.saved_size.columns
@@ -184,8 +184,10 @@ function provider.simple_toggle(cmd_string, env_table, effective_config)
     if state.hidden then
       show_window()
       kitty_cmd("focus-window --match id:" .. state.window_id)
-    else
+    elseif is_window_focused() then
       hide_window()
+    else
+      kitty_cmd("focus-window --match id:" .. state.window_id)
     end
   else
     provider.open(cmd_string, env_table, effective_config, true)
